@@ -337,7 +337,7 @@ impl DateTime {
     /// assert_eq!(dt.to_string(), "2022-01-01T12:13:14");
     /// ```
     pub fn parse_bytes(bytes: &[u8]) -> Result<Self, ParseError> {
-        DateTime::parse_bytes_with_config(bytes, &TimeConfigBuilder::new().build())
+        DateTime::parse_bytes_with_config(bytes, &DateTimeConfig::default(), &TimeConfigBuilder::new().build())
     }
 
     /// Same as `DateTime::parse_bytes` but supporting TimeConfig
@@ -350,12 +350,12 @@ impl DateTime {
     /// # Examples
     ///
     /// ```
-    /// use speedate::{DateTime, Date, Time, TimeConfigBuilder};
+    /// use speedate::{DateTime, Date, Time, TimeConfigBuilder, DateTimeConfig};
     ///
-    /// let dt = DateTime::parse_bytes_with_config(b"2022-01-01T12:13:14Z", &TimeConfigBuilder::new().build()).unwrap();
+    /// let dt = DateTime::parse_bytes_with_config(b"2022-01-01T12:13:14Z", &DateTimeConfig::default(), &TimeConfigBuilder::new().build()).unwrap();
     /// assert_eq!(dt.to_string(), "2022-01-01T12:13:14Z");
     /// ```
-    pub fn parse_bytes_with_config(bytes: &[u8], config: &TimeConfig) -> Result<Self, ParseError> {
+    pub fn parse_bytes_with_config(bytes: &[u8], dt_config: &DateTimeConfig, config: &TimeConfig) -> Result<Self, ParseError> {
         match Self::parse_bytes_rfc3339_with_config(bytes, config) {
             Ok(d) => Ok(d),
             Err(e) => match float_parse_bytes(bytes) {

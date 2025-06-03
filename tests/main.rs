@@ -5,7 +5,7 @@ use std::str::FromStr;
 use chrono::{Datelike, FixedOffset as ChronoFixedOffset, NaiveDate, Timelike, Utc as ChronoUtc};
 use strum::EnumMessage;
 
-use speedate::{float_parse_bytes, float_parse_str, int_parse_bytes, int_parse_str, Date, DateConfig, DateTime, Duration, IntFloat, MicrosecondsPrecisionOverflowBehavior, ParseError, Time, TimeConfig, TimeConfigBuilder, TimestampUnit};
+use speedate::{float_parse_bytes, float_parse_str, int_parse_bytes, int_parse_str, Date, DateConfig, DateTime, Duration, IntFloat, MicrosecondsPrecisionOverflowBehavior, ParseError, Time, TimeConfig, TimeConfigBuilder, TimestampUnit, DateTimeConfig};
 
 /// macro for expected values
 macro_rules! expect_ok_or_error {
@@ -1392,6 +1392,7 @@ fn test_time_parse_truncate_seconds() {
 fn test_datetime_parse_truncate_seconds() {
     let time = DateTime::parse_bytes_with_config(
         "2020-01-01T12:13:12.123456789".as_bytes(),
+        &(DateTimeConfig::default()),
         &(TimeConfigBuilder::new()
             .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)
             .build()),
@@ -1426,6 +1427,7 @@ fn test_time_parse_bytes_does_not_add_offset_for_rfc3339() {
 fn test_datetime_parse_bytes_does_not_add_offset_for_rfc3339() {
     let time = DateTime::parse_bytes_with_config(
         "2020-01-01T12:13:12".as_bytes(),
+        &(DateTimeConfig::default()),
         &(TimeConfigBuilder::new().unix_timestamp_offset(Some(0)).build()),
     )
     .unwrap();
@@ -1436,6 +1438,7 @@ fn test_datetime_parse_bytes_does_not_add_offset_for_rfc3339() {
 fn test_datetime_parse_unix_timestamp_from_bytes_with_utc_offset() {
     let time = DateTime::parse_bytes_with_config(
         "1689102037.5586429".as_bytes(),
+        &(DateTimeConfig::default()),
         &(TimeConfigBuilder::new()
             .unix_timestamp_offset(Some(0))
             .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)
@@ -1449,6 +1452,7 @@ fn test_datetime_parse_unix_timestamp_from_bytes_with_utc_offset() {
 fn test_datetime_parse_unix_timestamp_from_bytes_as_naive() {
     let time = DateTime::parse_bytes_with_config(
         "1689102037.5586429".as_bytes(),
+        &(DateTimeConfig::default()),
         &(TimeConfigBuilder::new()
             .unix_timestamp_offset(None)
             .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)

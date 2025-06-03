@@ -12,7 +12,7 @@ mod numbers;
 mod time;
 
 pub use date::{Date, DateConfig};
-pub use datetime::DateTime;
+pub use datetime::{DateTime, DateTimeConfig};
 pub use duration::Duration;
 pub use time::{MicrosecondsPrecisionOverflowBehavior, Time, TimeConfig, TimeConfigBuilder};
 pub use config::TimestampUnit;
