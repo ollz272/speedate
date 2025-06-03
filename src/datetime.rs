@@ -268,7 +268,7 @@ impl DateTime {
     /// assert_eq!(dt.to_string(), "2022-01-01T12:13:14Z");
     /// ```
     pub fn parse_bytes_rfc3339(bytes: &[u8]) -> Result<Self, ParseError> {
-        DateTime::parse_bytes_rfc3339_with_config(bytes, &TimeConfigBuilder::new().build())
+        DateTime::parse_bytes_rfc3339_with_config(bytes, &DateTimeConfig::default(), &TimeConfigBuilder::new().build())
     }
 
     /// Same as `parse_bytes_rfc3339` with with a `TimeConfig` parameter.
@@ -281,9 +281,9 @@ impl DateTime {
     /// # Examples
     ///
     /// ```
-    /// use speedate::{DateTime, Date, Time, TimeConfigBuilder};
+    /// use speedate::{DateTime, Date, Time, TimeConfigBuilder, DateTimeConfig};
     ///
-    /// let dt = DateTime::parse_bytes_rfc3339_with_config(b"2022-01-01T12:13:14Z", &TimeConfigBuilder::new().build()).unwrap();
+    /// let dt = DateTime::parse_bytes_rfc3339_with_config(b"2022-01-01T12:13:14Z", &DateTimeConfig::default(), &TimeConfigBuilder::new().build()).unwrap();
     /// assert_eq!(
     ///     dt,
     ///     DateTime {
@@ -303,7 +303,7 @@ impl DateTime {
     /// );
     /// assert_eq!(dt.to_string(), "2022-01-01T12:13:14Z");
     /// ```
-    pub fn parse_bytes_rfc3339_with_config(bytes: &[u8], config: &TimeConfig) -> Result<Self, ParseError> {
+    pub fn parse_bytes_rfc3339_with_config(bytes: &[u8], dt_config: &DateTimeConfig, config: &TimeConfig) -> Result<Self, ParseError> {
         // First up, parse the full date if we can
         let date = Date::parse_bytes_partial(bytes)?;
 
@@ -356,7 +356,7 @@ impl DateTime {
     /// assert_eq!(dt.to_string(), "2022-01-01T12:13:14Z");
     /// ```
     pub fn parse_bytes_with_config(bytes: &[u8], dt_config: &DateTimeConfig, config: &TimeConfig) -> Result<Self, ParseError> {
-        match Self::parse_bytes_rfc3339_with_config(bytes, config) {
+        match Self::parse_bytes_rfc3339_with_config(bytes, dt_config, config) {
             Ok(d) => Ok(d),
             Err(e) => match float_parse_bytes(bytes) {
                 IntFloat::Int(int) => Self::from_timestamp_with_config(int, 0, config),
