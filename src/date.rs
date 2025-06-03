@@ -2,7 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use crate::numbers::int_parse_bytes;
-use crate::{get_digit_unchecked, DateTime, ParseError};
+use crate::{config::{DateConfig, TimestampUnit}, get_digit_unchecked, DateTime, ParseError};
 
 /// A Date
 ///
@@ -114,6 +114,12 @@ impl Date {
         Self::parse_bytes(str.as_bytes())
     }
 
+    /// Parse a date from a string with a [`DateConfig`].
+    #[inline]
+    pub fn parse_str_with_config(str: &str, config: &DateConfig) -> Result<Self, ParseError> {
+        Self::parse_bytes_with_config(str.as_bytes(), config)
+    }
+
     /// Parse a date from bytes using RFC 3339 format
     ///
     /// # Arguments
@@ -169,10 +175,16 @@ impl Date {
     /// ```
     #[inline]
     pub fn parse_bytes(bytes: &[u8]) -> Result<Self, ParseError> {
+        Self::parse_bytes_with_config(bytes, &DateConfig::default())
+    }
+
+    /// Same as [`Date::parse_bytes`] but allows a [`DateConfig`] to be passed.
+    #[inline]
+    pub fn parse_bytes_with_config(bytes: &[u8], config: &DateConfig) -> Result<Self, ParseError> {
         match Self::parse_bytes_rfc3339(bytes) {
             Ok(d) => Ok(d),
             Err(e) => match int_parse_bytes(bytes) {
-                Some(int) => Self::from_timestamp(int, true),
+                Some(int) => Self::from_timestamp_with_config(int, true, config),
                 None => Err(e),
             },
         }
@@ -207,7 +219,28 @@ impl Date {
     /// assert_eq!(d.to_string(), "2022-06-07");
     /// ```
     pub fn from_timestamp(timestamp: i64, require_exact: bool) -> Result<Self, ParseError> {
-        let (seconds, microseconds) = Self::timestamp_watershed(timestamp)?;
+        Self::from_timestamp_with_config(timestamp, require_exact, &DateConfig::default())
+    }
+
+    /// Like [`Date::from_timestamp`] but with a [`DateConfig`].
+    pub fn from_timestamp_with_config(
+        timestamp: i64,
+        require_exact: bool,
+        config: &DateConfig,
+    ) -> Result<Self, ParseError> {
+        let (seconds, microseconds) = match config.timestamp_unit {
+            TimestampUnit::Infer => Self::timestamp_watershed(timestamp)?,
+            TimestampUnit::Second => (timestamp, 0),
+            TimestampUnit::Millisecond => {
+                let mut seconds = timestamp / 1_000;
+                let mut microseconds = ((timestamp % 1_000) * 1000) as i32;
+                if microseconds < 0 {
+                    seconds -= 1;
+                    microseconds += 1_000_000;
+                }
+                (seconds, microseconds as u32)
+            }
+        };
         let (d, remaining_seconds) = Self::from_timestamp_calc(seconds)?;
         if require_exact && (remaining_seconds != 0 || microseconds != 0) {
             return Err(ParseError::DateNotExact);

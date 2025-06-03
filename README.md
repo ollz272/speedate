@@ -66,13 +66,17 @@ assert_eq!(dt.to_string(), "2022-01-01T12:13:14Z");
 To control the specifics of time parsing you can use provide a `TimeConfig`:
 
 ```rust
-use speedate::{DateTime, Date, Time, TimeConfig, MicrosecondsPrecisionOverflowBehavior};
-let dt = DateTime::parse_bytes_with_config(
-    "1689102037.5586429".as_bytes(),
-    &TimeConfig::builder()
+use speedate::{DateTime, Date, Time, DateTimeConfig, TimeConfig, MicrosecondsPrecisionOverflowBehavior};
+let cfg = DateTimeConfig {
+    time_config: TimeConfig::builder()
         .unix_timestamp_offset(Some(0))
         .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)
         .build(),
+    ..Default::default()
+};
+let dt = DateTime::parse_bytes_with_config(
+    "1689102037.5586429".as_bytes(),
+    &cfg,
 ).unwrap();
 assert_eq!(
     dt,
