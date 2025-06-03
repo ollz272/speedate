@@ -127,7 +127,30 @@ impl Date {
     /// ```
     #[inline]
     pub fn parse_str(str: &str) -> Result<Self, ParseError> {
-        Self::parse_bytes(str.as_bytes())
+        Self::parse_str_with_config(str, &DateConfig::default())
+    }
+
+    /// Same as `Date::parse_str` but with a `DateConfig`.
+    ///
+    /// # Arguments
+    ///
+    /// * `str` - The string to parse
+    /// * `config` - The `DateConfig` to use
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use speedate::{Date, DateConfig};
+    ///
+    /// let d = Date::parse_str_with_config("2020-01-01", &DateConfig::default()).unwrap();
+    /// assert_eq!(d.to_string(), "2020-01-01");
+    ///
+    /// let d = Date::parse_str_with_config("1577836800", &DateConfig::default()).unwrap();
+    /// assert_eq!(d.to_string(), "2020-01-01");
+    /// ```
+    #[inline]
+    pub fn parse_str_with_config(str: &str, config: &DateConfig) -> Result<Self, ParseError> {
+        Self::parse_bytes_with_config(str.as_bytes(), config)
     }
 
     /// Parse a date from bytes using RFC 3339 format
@@ -185,10 +208,33 @@ impl Date {
     /// ```
     #[inline]
     pub fn parse_bytes(bytes: &[u8]) -> Result<Self, ParseError> {
+        Self::parse_bytes_with_config(bytes, &DateConfig::default())
+    }
+
+    /// Same as `Date::parse_bytes` but with a `DateConfig`.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The bytes to parse
+    /// * `config` - The `DateConfig` to use
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use speedate::{Date, DateConfig};
+    ///
+    /// let d = Date::parse_bytes_with_config(b"2020-01-01", &DateConfig::default()).unwrap();
+    /// assert_eq!(d.to_string(), "2020-01-01");
+    ///
+    /// let d = Date::parse_bytes_with_config(b"1577836800", &DateConfig::default()).unwrap();
+    /// assert_eq!(d.to_string(), "2020-01-01");
+    /// ```
+    #[inline]
+    pub fn parse_bytes_with_config(bytes: &[u8], config: &DateConfig) -> Result<Self, ParseError> {
         match Self::parse_bytes_rfc3339(bytes) {
             Ok(d) => Ok(d),
             Err(e) => match int_parse_bytes(bytes) {
-                Some(int) => Self::from_timestamp(int, true),
+                Some(int) => Self::from_timestamp_with_config(int, true, config),
                 None => Err(e),
             },
         }
@@ -223,7 +269,24 @@ impl Date {
     /// assert_eq!(d.to_string(), "2022-06-07");
     /// ```
     pub fn from_timestamp(timestamp: i64, require_exact: bool) -> Result<Self, ParseError> {
-        let (seconds, microseconds) = Self::timestamp_watershed(timestamp)?;
+        Self::from_timestamp_with_config(timestamp, require_exact, &DateConfig::default())
+    }
+
+    pub fn from_timestamp_with_config(
+        timestamp: i64,
+        require_exact: bool,
+        config: &DateConfig,
+    ) -> Result<Self, ParseError> {
+        let (seconds, microseconds) = match config.timestamp_unit {
+            TimestampUnit::Second => (timestamp, 0),
+            TimestampUnit::Millisecond => {
+                let seconds = timestamp / 1_000;
+                let microseconds = ((timestamp % 1_000) * 1000) as i32;
+                (seconds, if microseconds < 0 { 0 } else { microseconds as u32 })
+            }
+            TimestampUnit::Infer => Self::timestamp_watershed(timestamp)?,
+        };
+
         let (d, remaining_seconds) = Self::from_timestamp_calc(seconds)?;
         if require_exact && (remaining_seconds != 0 || microseconds != 0) {
             return Err(ParseError::DateNotExact);

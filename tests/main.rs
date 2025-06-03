@@ -5,10 +5,7 @@ use std::str::FromStr;
 use chrono::{Datelike, FixedOffset as ChronoFixedOffset, NaiveDate, Timelike, Utc as ChronoUtc};
 use strum::EnumMessage;
 
-use speedate::{
-    float_parse_bytes, float_parse_str, int_parse_bytes, int_parse_str, Date, DateTime, Duration, IntFloat,
-    MicrosecondsPrecisionOverflowBehavior, ParseError, Time, TimeConfig, TimeConfigBuilder,
-};
+use speedate::{float_parse_bytes, float_parse_str, int_parse_bytes, int_parse_str, Date, DateConfig, DateTime, Duration, IntFloat, MicrosecondsPrecisionOverflowBehavior, ParseError, Time, TimeConfig, TimeConfigBuilder, TimestampUnit};
 
 /// macro for expected values
 macro_rules! expect_ok_or_error {
@@ -1507,4 +1504,81 @@ fn number_dash_err() {
     assert!(matches!(float_parse_str("+"), IntFloat::Err));
     assert!(matches!(float_parse_bytes(b"-"), IntFloat::Err));
     assert!(matches!(float_parse_bytes(b"+"), IntFloat::Err));
+}
+
+#[test]
+/// Test that parse_str_with_config works with different timestamp unit settings
+fn test_parse_str_with_config() {
+    // With default config (Infer)
+    let date = Date::parse_str("1577836800").unwrap();
+    assert_eq!(date.to_string(), "2020-01-01");
+
+    // With explicit Second config
+    let config = DateConfig {
+        timestamp_unit: TimestampUnit::Second,
+    };
+    let date = Date::parse_str_with_config("1577836800", &config).unwrap();
+    assert_eq!(date.to_string(), "2020-01-01");
+
+    // With explicit Millisecond config
+    let config = DateConfig {
+        timestamp_unit: TimestampUnit::Millisecond,
+    };
+    let date = Date::parse_str_with_config("1577836800000", &config).unwrap();
+    assert_eq!(date.to_string(), "2020-01-01");
+
+    // Make sure the standard ISO format still works with any config
+    let config = DateConfig {
+        timestamp_unit: TimestampUnit::Second,
+    };
+    let date = Date::parse_str_with_config("2020-01-01", &config).unwrap();
+    assert_eq!(date.to_string(), "2020-01-01");
+}
+
+#[test]
+/// Test that from_timestamp_with_config works with different timestamp unit settings
+fn test_from_timestamp_with_config() {
+    // With default config (Infer)
+    let date = Date::from_timestamp(1577836800, true).unwrap();
+    assert_eq!(date.to_string(), "2020-01-01");
+
+    // With explicit Second config
+    let config = DateConfig {
+        timestamp_unit: TimestampUnit::Second,
+    };
+    let date = Date::from_timestamp_with_config(1577836800, true, &config).unwrap();
+    assert_eq!(date.to_string(), "2020-01-01");
+
+    // With explicit Millisecond config
+    let config = DateConfig {
+        timestamp_unit: TimestampUnit::Millisecond,
+    };
+    let date = Date::from_timestamp_with_config(1577836800000, true, &config).unwrap();
+    assert_eq!(date.to_string(), "2020-01-01");
+
+    // This would normally be interpreted as milliseconds with Infer
+    let config = DateConfig {
+        timestamp_unit: TimestampUnit::Second,
+    };
+    let date = Date::from_timestamp_with_config(19999958400, true, &config).unwrap();
+    assert_eq!(date.to_string(), "2603-10-11"); // 19999958400s after epoch
+}
+
+#[test]
+/// Test that existing functionality continues to work
+fn test_backward_compatibility() {
+    // The original parse_str should work the same
+    let date1 = Date::parse_str("2020-01-01").unwrap();
+    let date2 = Date::parse_str_with_config("2020-01-01", &DateConfig::default()).unwrap();
+    assert_eq!(date1, date2);
+
+    // The original parse_bytes should work the same
+    let date1 = Date::parse_bytes(b"2020-01-01").unwrap();
+    let date2 = Date::parse_bytes_with_config(b"2020-01-01", &DateConfig::default()).unwrap();
+    assert_eq!(date1, date2);
+
+    // The original from_timestamp should work the same
+    let date1 = Date::from_timestamp(1577836800, true).unwrap();
+    let date2 = Date::from_timestamp_with_config(1577836800, true, &DateConfig::default()).unwrap();
+    assert_eq!(date1, date2);
 }
