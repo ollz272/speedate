@@ -1,3 +1,4 @@
+use crate::config::TimestampUnit;
 use crate::date::MS_WATERSHED;
 use crate::{
     float_parse_bytes, numbers::decimal_digits, IntFloat, MicrosecondsPrecisionOverflowBehavior, TimeConfigBuilder,
@@ -24,6 +25,22 @@ use std::time::SystemTime;
 /// `DateTime` supports equality (`==`) and inequality (`>`, `<`, `>=`, `<=`) comparisons.
 ///
 /// See [DateTime::partial_cmp] for how this works.
+/// Configuration for parsing `DateTime`.
+
+#[derive(Debug, Clone)]
+pub struct DateTimeConfig {
+    /// How to interpret numeric timestamps (seconds, milliseconds, etc.).
+    pub timestamp_unit: TimestampUnit,
+}
+
+impl Default for DateTimeConfig {
+    fn default() -> Self {
+        DateTimeConfig {
+            timestamp_unit: TimestampUnit::Infer,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DateTime {
     /// date part of the datetime

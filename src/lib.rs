@@ -4,6 +4,7 @@ extern crate strum;
 
 use strum::{Display, EnumMessage};
 
+mod config;
 mod date;
 mod datetime;
 mod duration;
@@ -151,6 +152,7 @@ pub enum ParseError {
 pub enum ConfigError {
     // SecondsPrecisionOverflowBehavior string representation, must be one of "error" or "truncate"
     UnknownMicrosecondsPrecisionOverflowBehaviorString,
+    UnknownTimestampUnitString,
 }
 
 /// Used internally to write numbers to a buffer for `Display` of speedate types

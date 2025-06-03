@@ -1,8 +1,24 @@
 use std::fmt;
 use std::str::FromStr;
 
+use crate::config::TimestampUnit;
 use crate::numbers::int_parse_bytes;
 use crate::{get_digit_unchecked, DateTime, ParseError};
+
+/// Configuration for parsing `Date`.
+#[derive(Debug, Clone)]
+pub struct DateConfig {
+    /// How to interpret numeric timestamps (seconds, milliseconds, etc.).
+    pub timestamp_unit: TimestampUnit,
+}
+
+impl Default for DateConfig {
+    fn default() -> Self {
+        DateConfig {
+            timestamp_unit: TimestampUnit::Infer,
+        }
+    }
+}
 
 /// A Date
 ///
