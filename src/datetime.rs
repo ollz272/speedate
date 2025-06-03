@@ -2,7 +2,7 @@ use crate::date::MS_WATERSHED;
 use crate::{
     float_parse_bytes, numbers::decimal_digits, IntFloat, MicrosecondsPrecisionOverflowBehavior, TimeConfigBuilder,
 };
-use crate::{time::TimeConfig, Date, ParseError, Time};
+use crate::{config::{DateTimeConfig, TimestampUnit}, time::TimeConfig, Date, ParseError, Time};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
@@ -219,6 +219,12 @@ impl DateTime {
     pub fn parse_str(str: &str) -> Result<Self, ParseError> {
         Self::parse_bytes(str.as_bytes())
     }
+
+    /// Parse a datetime from a string with a [`DateTimeConfig`].
+    #[inline]
+    pub fn parse_str_with_config(str: &str, config: &DateTimeConfig) -> Result<Self, ParseError> {
+        Self::parse_bytes_with_config(str.as_bytes(), config)
+    }
     /// Parse a datetime from bytes using RFC 3339 format
     ///
     /// # Arguments
@@ -320,10 +326,10 @@ impl DateTime {
     /// assert_eq!(dt.to_string(), "2022-01-01T12:13:14");
     /// ```
     pub fn parse_bytes(bytes: &[u8]) -> Result<Self, ParseError> {
-        DateTime::parse_bytes_with_config(bytes, &TimeConfigBuilder::new().build())
+        DateTime::parse_bytes_with_config(bytes, &DateTimeConfig::default())
     }
 
-    /// Same as `DateTime::parse_bytes` but supporting TimeConfig
+    /// Same as `DateTime::parse_bytes` but supporting [`DateTimeConfig`]
     ///
     /// # Arguments
     ///
@@ -333,20 +339,24 @@ impl DateTime {
     /// # Examples
     ///
     /// ```
-    /// use speedate::{DateTime, Date, Time, TimeConfigBuilder};
+    /// use speedate::{DateTime, Date, Time, DateTimeConfig, TimeConfigBuilder};
     ///
-    /// let dt = DateTime::parse_bytes_with_config(b"2022-01-01T12:13:14Z", &TimeConfigBuilder::new().build()).unwrap();
+    /// let cfg = DateTimeConfig {
+    ///     time_config: TimeConfigBuilder::new().build(),
+    ///     ..Default::default()
+    /// };
+    /// let dt = DateTime::parse_bytes_with_config(b"2022-01-01T12:13:14Z", &cfg).unwrap();
     /// assert_eq!(dt.to_string(), "2022-01-01T12:13:14Z");
     /// ```
-    pub fn parse_bytes_with_config(bytes: &[u8], config: &TimeConfig) -> Result<Self, ParseError> {
-        match Self::parse_bytes_rfc3339_with_config(bytes, config) {
+    pub fn parse_bytes_with_config(bytes: &[u8], config: &DateTimeConfig) -> Result<Self, ParseError> {
+        match Self::parse_bytes_rfc3339_with_config(bytes, &config.time_config) {
             Ok(d) => Ok(d),
             Err(e) => match float_parse_bytes(bytes) {
                 IntFloat::Int(int) => Self::from_timestamp_with_config(int, 0, config),
                 IntFloat::Float(float) => {
                     let timestamp_in_milliseconds = float.abs() > MS_WATERSHED as f64;
 
-                    if config.microseconds_precision_overflow_behavior == MicrosecondsPrecisionOverflowBehavior::Error {
+                    if config.time_config.microseconds_precision_overflow_behavior == MicrosecondsPrecisionOverflowBehavior::Error {
                         let decimal_digits_count = decimal_digits(bytes);
 
                         // If the number of decimal digits exceeds the maximum allowed for the timestamp precision,
@@ -406,20 +416,33 @@ impl DateTime {
     /// # Examples
     ///
     /// ```
-    /// use speedate::{DateTime, TimeConfigBuilder};
+    /// use speedate::{DateTime, DateTimeConfig, TimeConfigBuilder};
     ///
-    /// let d = DateTime::from_timestamp_with_config(1_654_619_320, 123, &TimeConfigBuilder::new().build()).unwrap();
+    /// let cfg = DateTimeConfig { time_config: TimeConfigBuilder::new().build(), ..Default::default() };
+    /// let d = DateTime::from_timestamp_with_config(1_654_619_320, 123, &cfg).unwrap();
     /// assert_eq!(d.to_string(), "2022-06-07T16:28:40.000123");
     ///
-    /// let d = DateTime::from_timestamp_with_config(1_654_619_320_123, 123_000, &TimeConfigBuilder::new().build()).unwrap();
+    /// let d = DateTime::from_timestamp_with_config(1_654_619_320_123, 123_000, &cfg).unwrap();
     /// assert_eq!(d.to_string(), "2022-06-07T16:28:40.246000");
     /// ```
     pub fn from_timestamp_with_config(
         timestamp: i64,
         timestamp_microsecond: u32,
-        config: &TimeConfig,
+        config: &DateTimeConfig,
     ) -> Result<Self, ParseError> {
-        let (mut second, extra_microsecond) = Date::timestamp_watershed(timestamp)?;
+        let (mut second, extra_microsecond) = match config.timestamp_unit {
+            TimestampUnit::Infer => Date::timestamp_watershed(timestamp)?,
+            TimestampUnit::Second => (timestamp, 0),
+            TimestampUnit::Millisecond => {
+                let mut seconds = timestamp / 1_000;
+                let mut microseconds = ((timestamp % 1_000) * 1000) as i32;
+                if microseconds < 0 {
+                    seconds -= 1;
+                    microseconds += 1_000_000;
+                }
+                (seconds, microseconds as u32)
+            }
+        };
         let mut total_microsecond = timestamp_microsecond
             .checked_add(extra_microsecond)
             .ok_or(ParseError::TimeTooLarge)?;
@@ -432,7 +455,7 @@ impl DateTime {
         let (date, time_second) = Date::from_timestamp_calc(second)?;
         Ok(Self {
             date,
-            time: Time::from_timestamp_with_config(time_second, total_microsecond, config)?,
+            time: Time::from_timestamp_with_config(time_second, total_microsecond, &config.time_config)?,
         })
     }
 
@@ -471,7 +494,7 @@ impl DateTime {
     /// assert_eq!(d.to_string(), "2022-06-07T16:28:40.246000");
     /// ```
     pub fn from_timestamp(timestamp: i64, timestamp_microsecond: u32) -> Result<Self, ParseError> {
-        Self::from_timestamp_with_config(timestamp, timestamp_microsecond, &TimeConfigBuilder::new().build())
+        Self::from_timestamp_with_config(timestamp, timestamp_microsecond, &DateTimeConfig::default())
     }
 
     /// Create a datetime from the system time. This method uses [std::time::SystemTime] to get

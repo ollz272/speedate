@@ -7,7 +7,7 @@ use strum::EnumMessage;
 
 use speedate::{
     float_parse_bytes, float_parse_str, int_parse_bytes, int_parse_str, Date, DateTime, Duration, IntFloat,
-    MicrosecondsPrecisionOverflowBehavior, ParseError, Time, TimeConfig, TimeConfigBuilder,
+    MicrosecondsPrecisionOverflowBehavior, ParseError, Time, TimeConfig, TimeConfigBuilder, DateTimeConfig,
 };
 
 /// macro for expected values
@@ -1393,11 +1393,15 @@ fn test_time_parse_truncate_seconds() {
 
 #[test]
 fn test_datetime_parse_truncate_seconds() {
+    let cfg = DateTimeConfig {
+        time_config: TimeConfigBuilder::new()
+            .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)
+            .build(),
+        ..Default::default()
+    };
     let time = DateTime::parse_bytes_with_config(
         "2020-01-01T12:13:12.123456789".as_bytes(),
-        &(TimeConfigBuilder::new()
-            .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)
-            .build()),
+        &cfg,
     )
     .unwrap();
     assert_eq!(time.to_string(), "2020-01-01T12:13:12.123456");
@@ -1427,9 +1431,13 @@ fn test_time_parse_bytes_does_not_add_offset_for_rfc3339() {
 
 #[test]
 fn test_datetime_parse_bytes_does_not_add_offset_for_rfc3339() {
+    let cfg = DateTimeConfig {
+        time_config: TimeConfigBuilder::new().unix_timestamp_offset(Some(0)).build(),
+        ..Default::default()
+    };
     let time = DateTime::parse_bytes_with_config(
         "2020-01-01T12:13:12".as_bytes(),
-        &(TimeConfigBuilder::new().unix_timestamp_offset(Some(0)).build()),
+        &cfg,
     )
     .unwrap();
     assert_eq!(time.to_string(), "2020-01-01T12:13:12");
@@ -1437,12 +1445,16 @@ fn test_datetime_parse_bytes_does_not_add_offset_for_rfc3339() {
 
 #[test]
 fn test_datetime_parse_unix_timestamp_from_bytes_with_utc_offset() {
-    let time = DateTime::parse_bytes_with_config(
-        "1689102037.5586429".as_bytes(),
-        &(TimeConfigBuilder::new()
+    let cfg = DateTimeConfig {
+        time_config: TimeConfigBuilder::new()
             .unix_timestamp_offset(Some(0))
             .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)
-            .build()),
+            .build(),
+        ..Default::default()
+    };
+    let time = DateTime::parse_bytes_with_config(
+        "1689102037.5586429".as_bytes(),
+        &cfg,
     )
     .unwrap();
     assert_eq!(time.to_string(), "2023-07-11T19:00:37.558643Z");
@@ -1450,12 +1462,16 @@ fn test_datetime_parse_unix_timestamp_from_bytes_with_utc_offset() {
 
 #[test]
 fn test_datetime_parse_unix_timestamp_from_bytes_as_naive() {
-    let time = DateTime::parse_bytes_with_config(
-        "1689102037.5586429".as_bytes(),
-        &(TimeConfigBuilder::new()
+    let cfg = DateTimeConfig {
+        time_config: TimeConfigBuilder::new()
             .unix_timestamp_offset(None)
             .microseconds_precision_overflow_behavior(MicrosecondsPrecisionOverflowBehavior::Truncate)
-            .build()),
+            .build(),
+        ..Default::default()
+    };
+    let time = DateTime::parse_bytes_with_config(
+        "1689102037.5586429".as_bytes(),
+        &cfg,
     )
     .unwrap();
     assert_eq!(time.to_string(), "2023-07-11T19:00:37.558643");
